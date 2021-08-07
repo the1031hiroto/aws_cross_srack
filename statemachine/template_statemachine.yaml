@@ -1,0 +1,63 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: SAM template for Step Functions created by soda-h.
+
+Parameters:
+  RefIamStackName:
+    Description: 参照するスタック名
+    Type: String
+    Default: 'minael-stack-iam'
+  RefLambdaStackName:
+    Description: 参照するスタック名
+    Type: String
+    Default: 'minael-stack-dev-lambda'
+  ProjectName:
+    Description: プロジェクト名
+    Type: String
+    Default: 'minael'
+  StateMachineName:
+    Description: ロググループと名前を統一させるため
+    Type: String
+    Default: 'minael-statemachine'
+
+Resources:
+  StateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Name: !Sub ${StateMachineName}
+      DefinitionUri: def_sm.json
+      Role:
+        Fn::ImportValue: !Sub "${RefIamStackName}-statemachine-role"
+      Tracing:
+        Enabled: True
+      DefinitionSubstitutions:
+        Function_1:
+          Fn::ImportValue: !Sub "${RefLambdaStackName}-Function_1"
+        Function_2:
+          Fn::ImportValue: !Sub "${RefLambdaStackName}-Function_2"
+        Function_3:
+          Fn::ImportValue: !Sub "${RefLambdaStackName}-Function_3"
+      Tags:
+        project: !Sub ${ProjectName}
+      Logging:
+        Level: ALL
+        IncludeExecutionData: True
+        Destinations:
+          - CloudWatchLogsLogGroup:
+              LogGroupArn: !GetAtt StateMachineLogGroup.Arn
+  StateMachineLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName : !Sub "/aws/states/${ProjectName}/${StateMachineName}-Logs"
+
+Outputs:
+  OutputStateMachine:
+    Description: "StateMachine"
+    Value: !GetAtt StateMachine.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-StateMachine"
+  OutputStateMachineLogGroup:
+    Description: "StateMachine Log Group"
+    Value: !GetAtt StateMachineLogGroup.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-StateMachineLogGroup"

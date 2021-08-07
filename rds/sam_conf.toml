@@ -1,0 +1,30 @@
+version = 0.1
+
+[subnet.build.parameters]
+template_file = "template_subnet.yaml"
+build_dir = ".aws-sam/subnet/"
+
+[subnet.deploy.parameters]
+template_file = ".aws-sam/subnet/template.yaml"
+stack_name = "sample-project-2021-06-stack-dev-subnet"
+s3_bucket = "sample-project-2021-06"
+s3_prefix = "sample-project-stack-dev/subnet"
+region = "ap-northeast-1"
+profile = "sample-project-2021-06-stack-iam-create-user"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+
+[rds.build.parameters]
+template_file = "template_rds.yaml"
+build_dir = ".aws-sam/rds/"
+
+[rds.deploy.parameters]
+template_file = ".aws-sam/rds/template.yaml"
+stack_name = "sample-project-2021-06-stack-dev-rds"
+s3_bucket = "sample-project-2021-06"
+s3_prefix = "sample-project-rds-stack-dev/rds"
+region = "ap-northeast-1"
+profile = "sample-project-2021-06-stack-iam-create-user"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+parameter_overrides = "DBUsername=user DBPassword=password"

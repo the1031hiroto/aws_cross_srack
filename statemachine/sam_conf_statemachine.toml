@@ -1,0 +1,30 @@
+version = 0.1
+
+[dev.build.parameters]
+template_file = "template_statemachine.yaml"
+build_dir = ".aws-sam/dev/"
+
+[dev.deploy.parameters]
+template_file = ".aws-sam/dev/template.yaml"
+stack_name = "minael-stack-dev-statemachine"
+s3_bucket = "test.minique.minael.jp"
+s3_prefix = "minael-stack-dev-statemachine"
+region = "ap-southeast-1"
+profile = "minael-stack-iam-create-user"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+
+
+[prod.build.parameters]
+template_file = "template_statemachine.yaml"
+build_dir = ".aws-sam/prod/"
+
+[prod.deploy.parameters]
+template_file = ".aws-sam/prod/template.yaml"
+stack_name = "minael-stack-statemachine"
+s3_bucket = "test.minique.minael.jp"
+s3_prefix = "minael-stack-statemachine"
+region = "ap-southeast-1"
+profile = "minael-stack-iam-create-user"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"

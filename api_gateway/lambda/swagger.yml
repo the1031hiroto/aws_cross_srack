@@ -1,0 +1,145 @@
+swagger: "2.0"
+info:
+  description: |+
+    API Gateway Sample created by soda-h.
+    For more details of responses, refer: https://webservices.amazon.com/paapi5/documentation/search-items.html#resources-parameter
+  version: "1.0.0"
+  title: "API Gateway Sample"
+# host: "rno5o240yg.execute-api.ap-northeast-1.amazonaws.com"
+basePath: "/Prod"
+tags:
+  - name: "APIGatewaySample"
+schemes:
+  - "https"
+paths:
+  /event_1:
+    get:
+      tags:
+        - "APIGatewaySample"
+      summary: "API Gateway Sample"
+      description: "パラメーター"
+      produces:
+        - "application/json"
+      parameters:
+      - name: "keywords"
+        in: "query"
+        required: false
+        type: "string"
+        description: "フリーワード"
+      - name: "title"
+        in: "query"
+        required: false
+        type: "string"
+        description: "作品タイトル"
+      responses:
+        "200":
+          description: "successful operation"
+          schema:
+            $ref: "#/definitions/AmazonPaApiResponces"
+        "400":
+          description: Bad request
+          headers:
+            Access-Control-Allow-Origin:
+              type: "string"
+          schema:
+            $ref: '#/definitions/Error'
+        "500":
+          description: "500 response"
+          schema:
+            $ref: "#/definitions/Error"
+      security:
+        - api_key: []
+      x-amazon-apigateway-request-validator: "本文、クエリ文字列パラメータ、およびヘッダーの検証"
+      x-amazon-apigateway-integration:
+        credentials:
+          Fn::ImportValue:
+            Fn::Sub: "${RefIamStackName}-apigateway-role"
+        uri:
+          Fn::Sub: arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${LambdaFunction.Arn}/invocations
+        passthroughBehavior: when_no_templates
+        type: "aws_proxy"
+        httpMethod: POST
+
+securityDefinitions:
+  api_key:
+    type: "apiKey"
+    name: "x-api-key"
+    in: "header"
+definitions:
+  APIGatewaySampleResponces:
+    type: "object"
+    required:
+      - "SearchResult"
+    properties:
+      SearchResult:
+        type: "object"
+        properties:
+          SearchURL:
+            type: "string"
+            format: "uri"
+          TotalResultCount:
+            type: "integer"
+          Items:
+            type: "array"
+            items:
+              type: "object"
+              properties:
+                ASIN:
+                  type: "string"
+                DetailPageURL:
+                  type: "string"
+                ItemInfo:
+                  type: "object"
+                  $ref: "#/definitions/ItemInfo"
+
+  ItemInfo:
+    type: "object"
+    properties:
+      ByLineInfo:
+        type: "object"
+        properties:
+          Brand:
+            type: "object"
+            properties:
+              DisplayValue:
+                type: "string"
+              Label:
+                type: "string"
+              Locale:
+                type: "string"
+          Contributors:
+            type: "array"
+            items:
+              type: object
+              properties:
+                Locale:
+                  type: "string"
+                Name:
+                  type: "string"
+                Role:
+                  type: "string"
+                RoleType:
+                  type: "string"
+          Manufacturer:
+            type: "object"
+            properties:
+              DisplayValue:
+                type: "string"
+              Label:
+                type: "string"
+              Locale:
+                type: "string"
+      Title:
+        type: "object"
+        properties:
+          DisplayValue:
+            type: "string"
+          Label:
+            type: "string"
+          Locale:
+            type: "string"
+
+  Error:
+    properties:
+      message:
+        type: string

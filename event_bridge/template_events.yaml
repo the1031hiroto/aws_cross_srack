@@ -1,0 +1,41 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: SAM template for Event Bridge created by soda-h.
+
+Parameters:
+  RefIamStackName:
+    Description: 参照するスタック名
+    Type: String
+    Default: 'sample-project-stack-iam'
+  RefStatemachineStackName:
+    Description: 参照するスタック名
+    Type: String
+    Default: 'sample-project-stack-dev-statemachine'
+  ProjectName:
+    Description: プロジェクト名
+    Type: String
+    Default: 'sample-project'
+
+Resources:
+  EventsRuleStepFunctions:
+    Type: 'AWS::Events::Rule'
+    Properties:
+      Description: Test Events Rule
+      ScheduleExpression: 'cron(0/2 * * * ? *)'
+      State: ENABLED
+      Targets:
+        - Id: Id1234
+          Arn:
+            Fn::ImportValue: !Sub "${RefStatemachineStackName}-StateMachine"
+          RoleArn:
+            Fn::ImportValue: !Sub "${RefIamStackName}-statemachine-role"
+          RetryPolicy:
+            MaximumRetryAttempts: 4
+            MaximumEventAgeInSeconds: 400
+
+Outputs:
+  OutputEventsRuleStepFunctions:
+    Description: "EventsRuleStepFunctions"
+    Value: !GetAtt EventsRuleStepFunctions.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-EventsRuleStepFunctions"

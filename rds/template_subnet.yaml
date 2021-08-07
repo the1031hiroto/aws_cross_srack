@@ -1,0 +1,57 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  AWS CloudFormation Sample Template for Subnet: 
+  Created by soda-h. 
+
+Resources:
+  SampleVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.0.0.0/16
+      EnableDnsSupport: 'true'
+      EnableDnsHostnames: 'true'
+      InstanceTenancy: default
+  SampleSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref SampleVPC
+      CidrBlock: 10.0.3.0/24
+      AvailabilityZone: "ap-northeast-1a"
+  SampleSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref SampleVPC
+      CidrBlock: 10.0.1.0/24
+      AvailabilityZone: "ap-northeast-1c"
+  SampleSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Sample Security Group For RDS
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 3306
+          ToPort: 3306
+          CidrIp: '0.0.0.0/0'
+      VpcId: !Ref SampleVPC
+
+Outputs:
+  SampleVpcID:
+    Description: Sample VPC ID
+    Value: !GetAtt SampleSubnet.VpcId
+    Export:
+      Name: !Sub "${AWS::StackName}-vpc-id"
+  SampleSubnetID:
+    Description: Sample Subnet ID
+    Value: !Ref SampleSubnet
+    Export:
+      Name: !Sub "${AWS::StackName}-subnet-id"
+  SampleSubnet2ID:
+    Description: Sample Subnet_2 ID
+    Value: !Ref SampleSubnet2
+    Export:
+      Name: !Sub "${AWS::StackName}-subnet2-id"
+  SampleSecurityGroupID:
+    Description: Sample Security Group ID
+    Value: !GetAtt SampleSecurityGroup.GroupId
+    Export:
+      Name: !Sub "${AWS::StackName}-security-group-id"

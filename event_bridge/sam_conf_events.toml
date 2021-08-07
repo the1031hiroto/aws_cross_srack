@@ -1,0 +1,30 @@
+version = 0.1
+
+[dev.build.parameters]
+template_file = "template_events.yaml"
+build_dir = ".aws-sam/dev"
+
+[dev.deploy.parameters]
+template_file = ".aws-sam/dev/template.yaml"
+stack_name = "sample-project-stack-dev-events"
+s3_bucket = "sample-project-name"
+s3_prefix = "sample-project-stack-dev/events"
+region = "ap-southeast-1"
+profile = "sample-project-stack-iam-create-user"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+
+
+[prod.build.parameters]
+template_file = "template_events.yaml"
+build_dir = ".aws-sam"
+
+[prod.deploy.parameters]
+template_file = ".aws-sam/prod/template.yaml"
+stack_name = "sample-project-stack-events"
+s3_bucket = "sample-project-name"
+s3_prefix = "sample-project-stack/events"
+region = "ap-southeast-1"
+profile = "sample-project-stack-iam-create-user"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"

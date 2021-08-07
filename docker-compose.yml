@@ -1,0 +1,97 @@
+version: "3"
+services:
+    localstack:
+        container_name: localstack
+        image: localstack/localstack
+        working_dir: /srv
+        volumes:
+            # - ./aws:/srv:rw
+            - ./localstack:/docker-entrypoint-initaws.d #初期データ
+        ports:
+            - "4566:4566"
+        env_file: .env_local # Localstackに関係しない変数
+        environment: # Localstack関連する変数
+            - SERVICES=lambda,s3,stepfunctions,cloudwatch,logs,sns,ses,apigateway
+            - DOCKER_HOST=unix:///var/run/docker.sock
+            - DEFAULT_REGION=ap-northeast-1
+            - AWS_ACCESS_KEY_ID=dummy
+            - AWS_SECRET_ACCESS_KEY=dummy
+            - DEBUG=1
+        networks:
+            - sam-app_default
+        healthcheck:
+            test: ["CMD", "curl", "-f", "http://localhost:4566"]
+            interval: 5s
+            timeout: 10s
+            retries: 5
+
+    db:
+        # image: mysql:5.7
+        build: ./db
+        container_name: mysql_host
+        tty: true
+        restart: always
+        environment:
+            LANG: ja_JP.UTF-8
+            TZ: Asia/Tokyo
+            MYSQL_ROOT_PASSWORD: password
+            MYSQL_DATABASE: mysql_docker
+            MYSQL_USER: user
+            MYSQL_PASSWORD: password
+            MYSQL_ALLOW_EMPTY_PASSWORD: ‘yes’
+        volumes:
+            - ./db/my.cnf:/etc/mysql/conf.d/my.cnf
+            # docker-compose.ymlのvolumesでマウントすると権限がなくて実行出来ないためDockerfileで記載
+            # - ./db/sql:/docker-entrypoint-initdb.d
+            # データを永続したい場合使用
+            # - ./db/mysql/data:/var/lib/mysql
+        ports:
+            - 3306:3306
+        networks:
+            - sam-app_default
+        command: mysqld --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+    node:
+        image: "node:8"
+        container_name: node
+        user: "node"
+        working_dir: /home/node/app
+        environment:
+            - HOST_NAME=0.0.0.0
+            - PORT=3001
+        volumes:
+            - ./tests/src:/home/node/app
+        ports:
+            - "3001:3001"
+            - "3002:3002"
+        networks:
+            - sam-app_default
+        command: "node index.js"
+
+    python_test:
+        build: ./tests
+        working_dir: /test
+        volumes:
+            - .:/test/
+        env_file: .env_local
+        environment:
+            - DEFAULT_REGION=ap-northeast-1
+            - AWS_ACCESS_KEY_ID=dummy
+            - AWS_SECRET_ACCESS_KEY=dummy
+            - S3_ENDPOINT_URL=http://localstack:4566/ # localstackコンテナのポート
+            - CRAWL_URL_1=http://node:3001/1 # nodeコンテナのポート
+            - CRAWL_URL_2=http://node:3001/2 # nodeコンテナのポート
+            - CRAWL_URL_ID=999999999
+            - BUCKET_NAME=sample-project-name
+            - DIRECTORY=results/crawled/
+        networks:
+            - sam-app_default
+        depends_on:
+            - localstack
+            - node
+            - db
+        command: python -m unittest discover tests/units
+
+networks:
+    sam-app_default:
+        external: true

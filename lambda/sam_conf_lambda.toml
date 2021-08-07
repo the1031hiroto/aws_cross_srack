@@ -1,0 +1,32 @@
+version = 0.1
+
+[dev.build.parameters]
+template_file = "template_lambda.yaml"
+build_dir = ".aws-sam/dev/"
+
+[dev.deploy.parameters]
+template_file = ".aws-sam/dev/template.yaml"
+stack_name = "sample-project-stack-dev-lambda"
+s3_bucket = "sample-project-name"
+s3_prefix = "sample-project-lambda-stack-dev/lambda"
+region = "ap-southeast-1"
+profile = "sample-project-stack-iam-create-user"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+image_repositories = ["Function_1=117232438179.dkr.ecr.ap-southeast-1.amazonaws.com/sample-project-lambda-container-dev"]
+
+
+[prod.build.parameters]
+template_file = "template_lambda.yaml"
+build_dir = ".aws-sam/prod"
+
+[prod.deploy.parameters]
+template_file = ".aws-sam/prod/template.yaml"
+stack_name = "sample-project-lambda-stack"
+s3_bucket = "sample-project-name"
+s3_prefix = "sample-project-lambda-stack"
+region = "ap-southeast-1"
+profile = "sample-project-stack-iam-create-user"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+image_repositories = ["Function_1=117232438179.dkr.ecr.ap-southeast-1.amazonaws.com/sample-project-lambda-container"]

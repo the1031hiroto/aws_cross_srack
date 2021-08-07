@@ -1,0 +1,149 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  AWS CloudFormation Sample Template for creating an Amazon RDS DB instance(aurora-mysql): 
+  Created by soda-h. 
+Parameters:
+  DBInstanceIdentifier:
+    Default: SampleDBInstance
+    Description: My database instance
+    Type: String
+    MinLength: '1'
+    MaxLength: '63'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: >-
+      Must begin with a letter and must not end with a hyphen or contain two
+      consecutive hyphens.
+  DBInstanceClass:
+    Default: db.t2.small
+    Description: DB instance class
+    Type: String
+    ConstraintDescription: Must select a valid DB instance type.
+  DBUsername:
+    Default: user
+    Description: Username for MySQL database access
+    Type: String
+    MinLength: '1'
+    MaxLength: '16'
+    AllowedPattern: '[a-zA-Z][a-zA-Z0-9]*'
+    ConstraintDescription: must begin with a letter and contain only alphanumeric characters.
+  DBPassword:
+    Default: password
+    Description: Password MySQL database access
+    Type: String
+    MinLength: '8'
+    MaxLength: '41'
+    AllowedPattern: '[a-zA-Z0-9]*'
+    ConstraintDescription: must contain only alphanumeric characters.
+  RefSubnetStackName:
+    Default: sample-project-2021-06-stack-dev-subnet
+    Description: Name of stack for Subnet
+    Type: String
+
+Resources:
+  # スナップショットから復元
+  # RDSCluster:
+  #   Type: "AWS::RDS::DBCluster"
+  #   Properties:
+  #     SnapshotIdentifier: "arn:aws:rds:ap-northeast-1:117232438179:cluster-snapshot:sample-project-2021-06-stack-dev-rds-snapshot-sample-project-2021-06-stack-dev-rds-rdscluster-tkagjopkw6sp-p9u09d8u6m97"
+  #     Engine: aurora-mysql
+  #     EngineVersion: 5.7.12
+
+  RDSCluster:
+    Type: "AWS::RDS::DBCluster"
+    Properties:
+      DBClusterParameterGroupName:
+        Ref: RDSDBClusterParameterGroup
+      Engine: aurora-mysql
+      EngineVersion: 5.7.12
+      MasterUsername: !Ref DBUsername
+      MasterUserPassword: !Ref DBPassword
+      DBSubnetGroupName: !Ref 'SampleDBSubnetGroup'
+      VpcSecurityGroupIds:
+        - Fn::ImportValue: !Sub "${RefSubnetStackName}-security-group-id"
+        # - !GetAtt 'SampleSecurityGroup.GroupId'
+
+  RDSDBClusterParameterGroup:
+    Type: "AWS::RDS::DBClusterParameterGroup"
+    Properties:
+      Description: "CloudFormation Sample Aurora Cluster Parameter Group"
+      Family: aurora-mysql5.7
+      Parameters:
+        # time_zone: UTC
+        time_zone: Asia/Tokyo
+        character_set_database: utf8mb4
+
+  RDSDBParameterGroup:
+    Type: 'AWS::RDS::DBParameterGroup'
+    Properties:
+      Description: CloudFormation Sample Aurora Parameter Group
+      Family: aurora-mysql5.7
+      Parameters:
+        sql_mode: IGNORE_SPACE
+        max_allowed_packet: 1024
+        innodb_buffer_pool_size: '{DBInstanceClassMemory*3/4}'
+
+  SampleDBInstanceProd:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      DBInstanceClass: !Ref DBInstanceClass
+      Engine: aurora-mysql
+      DBInstanceIdentifier: prod
+      DBClusterIdentifier: !Ref RDSCluster
+      DBParameterGroupName: !Ref RDSDBParameterGroup
+
+  SampleDBInstanceDev:
+    Type: "AWS::RDS::DBInstance"
+    Properties:
+      DBInstanceClass: !Ref DBInstanceClass
+      Engine: aurora-mysql
+      DBInstanceIdentifier: dev
+      DBClusterIdentifier: !Ref RDSCluster
+      DBParameterGroupName: !Ref RDSDBParameterGroup
+
+  SampleDBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: sample-aurora
+      DBSubnetGroupName: sample-aurora
+      SubnetIds:
+        - Fn::ImportValue: !Sub "${RefSubnetStackName}-subnet-id"
+        - Fn::ImportValue: !Sub "${RefSubnetStackName}-subnet2-id"
+        # - !Ref SampleSubnet
+        # - !Ref SampleSubnet2
+
+Outputs:
+  SampleDBInstanceProdId:
+    Description: InstanceId of the newly created RDS Instance
+    Value: !Ref SampleDBInstanceProd
+    Export:
+      Name: !Sub "${AWS::StackName}-db-instance-prod-id"
+  SampleDBInstanceProdEndpoint:
+    Description: Endpoint Address of the newly created RDS Instance
+    Value: !GetAtt SampleDBInstanceProd.Endpoint.Address
+    Export:
+      Name: !Sub "${AWS::StackName}-db-instance-prod-endpoint"
+  SampleDBInstanceProdPort:
+    Description: Port of the newly created RDS Instance
+    Value: !GetAtt SampleDBInstanceProd.Endpoint.Port
+    Export:
+      Name: !Sub "${AWS::StackName}-db-instance-prod-port"
+  SampleDBInstanceDevId:
+    Description: InstanceId of the newly created RDS Instance
+    Value: !Ref SampleDBInstanceDev
+    Export:
+      Name: !Sub "${AWS::StackName}-db-instance-dev-id"
+  SampleDBInstanceDevEndpoint:
+    Description: Endpoint Address of the newly created RDS Instance
+    Value: !GetAtt SampleDBInstanceDev.Endpoint.Address
+    Export:
+      Name: !Sub "${AWS::StackName}-db-instance-dev-endpoint"
+  SampleDBInstanceDevPort:
+    Description: Port of the newly created RDS Instance
+    Value: !GetAtt SampleDBInstanceDev.Endpoint.Port
+    Export:
+      Name: !Sub "${AWS::StackName}-db-instance-dev-prt"
+  SampleDBSubnetGroupName:
+    Description: Sample DB Subnet Group Name
+    Value: !Ref SampleDBSubnetGroup
+    Export:
+      Name: !Sub "${AWS::StackName}-db-subnet-group"

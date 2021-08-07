@@ -1,0 +1,107 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: SAM template for Lambda created by soda-h.
+
+Parameters:
+  LogLevel:
+    Description: ログレベル
+    Type: String
+    Default: 'INFO'
+  RefIamStackName:
+    Description: 参照するスタック名
+    Type: String
+    Default: 'sample-project-stack-iam'
+  ProjectName:
+    Description: プロジェクト名
+    Type: String
+    Default: 'sample-project'
+  BuckeName:
+    Description: 結果を保存するバケット
+    Type: String
+    Default: 'sample-project-name'
+  Prefix:
+    Description: 結果を保存するPrefix
+    Type: String
+    Default: 'results/'
+
+Globals:
+  Function:
+    MemorySize: 512
+    Timeout: 90
+    Tags:
+        project: !Sub ${ProjectName}
+    Environment:
+      Variables:
+        LOG_LEVEL: !Sub ${LogLevel}
+        S3_BUCKET_NAME: !Sub ${BuckeName}
+        S3_PREFIX: !Sub ${Prefix}
+        # test用。localstackコンテナのdocker-compose.ymlを参照。
+        # S3_ENDPOINT_URL: "http://localstack:4566/"
+        # AWS_ACCESS_KEY_ID: "dummy"
+        # AWS_SECRET_ACCESS_KEY: "dummy"
+
+Resources:
+  Function_1:
+    Description: 対象URLをクロールしてS3に保存
+    Type: AWS::Serverless::Function
+    Properties:
+      Role:
+        Fn::ImportValue: !Sub "${RefIamStackName}-LambdaCommon-role"
+      CodeUri: function_1/
+      PackageType: Image
+      Environment:
+        Variables:
+          CHROME_DRIVER_PATH: "/opt/python/bin/chromedriver"
+          HEADLESS_CHROMIUM_PATH: "/opt/python/bin/headless-chromium"
+          PAGE_LOAD_TIMEOUT: 90
+    Metadata: # コンテナイメージ用
+      Dockerfile: Dockerfile.multi
+      DockerContext: ./function_1
+      DockerTag: v3
+
+  Function_2:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role:
+        Fn::ImportValue: !Sub "${RefIamStackName}-LambdaCommon-role"
+      CodeUri: function_2/
+      Handler: app.lambda_handler
+      Runtime: python3.7
+      Environment:
+        Variables:
+          TMP_CURRENT_HTML_PATH: /tmp/current.html
+          TMP_INCOMING_HTML_PATH: /tmp/incoming.html
+
+  Function_3:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role:
+        Fn::ImportValue: !Sub "${RefIamStackName}-LambdaCommon-role"
+      CodeUri: function_3/
+      Handler: app.lambda_handler
+      Runtime: python3.7
+      Environment:
+        Variables:
+          DB_HOST: mysql_host
+          DB_PORT: 3306
+          DB_NAME: mysql_docker
+          DB_USER_NAME: user
+          DB_PASSWORD: password
+          DB_CONNECT_TIMEOUT: 5
+
+Outputs:
+  OutputFunction_1:
+    Description: "Lambda Function_1"
+    Value: !GetAtt Function_1.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-Function_1"
+  OutputFunction_2:
+    Description: "Lambda Function_2"
+    Value: !GetAtt Function_2.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-Function_2"
+  OutputFunction_3:
+    Description: "Lambda Function_3"
+    Value: !GetAtt Function_3.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-Function_3"

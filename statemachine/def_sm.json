@@ -1,0 +1,107 @@
+{
+    "Comment": "クロールして変更があれば差分ファイルを保存",
+    "StartAt": "Function_1",
+    "States": {
+        "Function_1": {
+            "Comment": "対象URLをクロールしてS3に保存",
+            "Type": "Task",
+            "Resource": "${Function_1}",
+            "InputPath":"$",
+            "Parameters": {
+                "state_machine_execution_id.$": "$$.Execution.Id",
+                "original_input.$": "$",
+                "crawl_url_id.$": "$.crawl_url_id",
+                "url.$": "$.url"
+            },
+            "ResultPath":"$",
+            "ResultSelector": {
+                "original_input.$": "$.original_input",
+                "crawl_url_id.$": "$.crawl_url_id",
+                "bucket_name.$": "$.bucket_name",
+                "prefix.$": "$.prefix",
+                "crawled_version_id.$": "$.crawled_version_id"
+            },
+            "Next": "Function_2"
+        },
+        "Function_2": {
+            "Comment": "最新２件のクロール結果に差分がある場合に差分ファイル保存",
+            "Type": "Task",
+            "Resource": "${Function_2}",
+            "InputPath":"$",
+            "Parameters": {
+                "state_machine_execution_id.$": "$$.Execution.Id",
+                "original_input.$": "$.original_input",
+                "check_type.$": "$.original_input.check_type",
+                "crawl_url_id.$": "$.crawl_url_id",
+                "crawled_version_id.$": "$.crawled_version_id"
+            },
+            "ResultPath":"$",
+            "ResultSelector": {
+                "crawl_url_id.$": "$.crawl_url_id",
+                "is_changed.$": "$.is_changed",
+                "bucket_name.$": "$.bucket_name",
+                "crawled_file_prefix.$": "$.crawled_file_prefix",
+                "diff_file_prefix.$": "$.diff_file_prefix",
+                "diff_version_id.$": "$.diff_version_id",
+                "last_crawled_version_id.$": "$.last_crawled_version_id"
+            },
+            "Next": "isChanged",
+            "Catch": [
+                {
+                    "ErrorEquals": ["States.ALL"],
+                    "ResultPath": "$.error",
+                    "Next": "FailedFunction_2"
+                }
+            ]
+        },
+        "FailedFunction_2": {
+            "Comment": "差分確認のファイルが一つも取得出来なかった場合",
+            "Type": "Fail",
+            "Error":"FailedFunction_2",
+            "Cause": "The object does not exist. Please check prefix."
+        },
+        "isChanged": {
+            "Comment": "差分結果分岐(フロー図を見易くするため)",
+            "Type": "Choice",
+            "Choices": [
+                {
+                    "Variable": "$.is_changed",
+                    "BooleanEquals": false,
+                    "Next": "NotChanged"
+                },
+                {
+                    "Variable": "$.is_changed",
+                    "BooleanEquals": true,
+                    "Next": "Changed"
+                }
+            ],
+            "Default": "NotChanged"
+        },
+        "NotChanged": {
+            "Comment": "差分なし(フロー図を見易くするため)",
+            "Type": "Pass",
+            "Next": "Function_3"
+        },
+        "Changed": {
+            "Comment": "差分あり(フロー図を見易くするため)",
+            "Type": "Pass",
+            "Next": "Function_3"
+        },
+        "Function_3": {
+            "Comment": "差分結果をRDSに保存",
+            "Type": "Task",
+            "Resource": "${Function_3}",
+            "InputPath":"$",
+            "Parameters": {
+                "state_machine_execution_id.$": "$$.Execution.Id",
+                "crawl_url_id.$": "$.crawl_url_id",
+                "is_changed.$": "$.is_changed",
+                "diff_version_id.$": "$.diff_version_id",
+                "last_crawled_version_id.$": "$.last_crawled_version_id"
+            },
+            "ResultPath":"$",
+            "OutputPath": "$",
+            "End": true
+        }
+    }
+}

@@ -1,0 +1,39 @@
+# Lambdaコンテナイメージ用
+ARG FUNCTION_DIR="/var/task"
+# build
+FROM public.ecr.aws/lambda/python:3.7 as build-stage
+
+ARG FUNCTION_DIR
+RUN mkdir -p ${FUNCTION_DIR}
+
+COPY ./ ${FUNCTION_DIR}
+
+
+WORKDIR ${FUNCTION_DIR}
+
+RUN python3.7 -m pip install --upgrade pip
+RUN python3.7 -m pip install -r requirements.txt -t .
+
+
+WORKDIR /opt
+COPY fetch-headless-chrome.sh ./
+RUN sh fetch-headless-chrome.sh
+
+
+# deploy
+FROM public.ecr.aws/lambda/python:3.7
+
+ARG FUNCTION_DIR
+WORKDIR ${FUNCTION_DIR}
+
+COPY --from=build-stage ${FUNCTION_DIR} .
+COPY --from=build-stage /opt /opt
+
+# COPY --from=build-stage /root/.cache/pip /root/.cache/pip
+# COPY --from=build-stage /root/requirements.txt /root
+# COPY --from=build-stage /root/app.py /root
+# RUN pip3 install -r /root/requirements.txt \
+#     && rm -rf /root/.cache/pip
+
+# Command can be overwritten by providing a different command in the template directly.
+CMD ["app.lambda_handler"]

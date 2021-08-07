@@ -1,0 +1,217 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: IAM template created by soda-h
+
+Parameters:
+  ProjectName:
+    Description: プロジェクト名
+    Type: String
+    Default: 'sample-project'
+
+Resources:
+  ProjectGroup:
+    Type: AWS::IAM::Group
+    Properties:
+      GroupName: !Sub "${ProjectName}"
+
+  # ポリシー
+  ProjectSamCommonPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "${AWS::StackName}-sam-common-policies"
+      Groups:
+        - !Ref ProjectGroup
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: "apigateway:*"
+            Resource: !Sub "arn:aws:apigateway:*:*:function:*${ProjectName}*"
+          - Effect: Allow
+            Action: "lambda:*"
+            Resource: !Sub "arn:aws:lambda:*:*:function:*${ProjectName}*"
+          - Effect: Allow
+            Action: "ecr:*"
+            Resource: !Sub "arn:aws:ecr:*:*:repository/*${ProjectName}*"
+          - Effect: Allow
+            Action: "states:*"
+            Resource: !Sub "arn:aws:states:*:*:*${ProjectName}*"
+          - Effect: Allow
+            Action: "logs:*"
+            Resource: !Sub "arn:aws:logs:*:*:log-group:/aws/*/*${ProjectName}*/*"
+          - Effect: Allow
+            Action: "cloudformation:*"
+            Resource: !Sub "arn:aws:cloudformation:*:*:stack/*${ProjectName}*/*"
+          - Effect: Allow
+            Action:
+              - "cloudformation:CreateChangeSet"
+              - "cloudformation:ExecuteChangeSet"
+              - "cloudformation:DescribeStacks"
+              - "cloudformation:GetTemplateSummary"
+              - "cloudformation:DescribeChangeSet"
+              - "cloudformation:DescribeStackEvents"
+            Resource: "*"
+          - Effect: Allow
+            Action: "s3:*"
+            Resource: !Sub "arn:aws:s3:::*${ProjectName}*/*"
+          - Effect: Allow
+            Action:
+              - "iam:GetRole"
+              - "iam:GetPolicy"
+              - "iam:PassRole"
+              - "iam:GetRolePolicy"
+            Resource:
+              - !Sub "arn:aws:iam::*:role/*${ProjectName}*"
+              - !Sub "arn:aws:iam::*:role/*${ProjectName}*"
+              - !Sub "arn:aws:iam::*:policy/*${ProjectName}*"
+              - !Sub "arn:aws:iam::*:group/*${ProjectName}*"
+          - Effect: Allow
+            Action:
+              - "events:PutTargets"
+              - "events:DescribeRule"
+              - "events:PutRule"
+              - "events:RemoveTargets"
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - "logs:DescribeLogGroups"
+              - "logs:DescribeLogStreams"
+            Resource: "*"
+          - Effect: Allow
+            Action:
+              - "ecr:BatchCheckLayerAvailability"
+              - "ecr:CompleteLayerUpload"
+              - "ecr:GetAuthorizationToken"
+              - "ecr:InitiateLayerUpload"
+              - "ecr:PutImage"
+              - "ecr:UploadLayerPart"
+            Resource: "*"
+          - Effect: Deny
+            Action:
+              - "cloudformation:DeleteStackInstances"
+              - "cloudformation:CreateStack"
+              - "cloudformation:DeleteStack"
+              - "cloudformation:DeleteStackSet"
+              - "s3:Delete*"
+            Resource: "*"
+
+  # デプロイ用ユーザ(Cloud Formation作成権限なし)
+  DeployUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub "${AWS::StackName}-deploy-user"
+      Groups:
+        - !Ref ProjectGroup
+
+  # デプロイ用ユーザ(Cloud Formation作成権限なし)
+  CreateUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: !Sub "${AWS::StackName}-create-user"
+      Groups:
+        - !Ref ProjectGroup
+
+  CreateUserPoricy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: !Sub "${AWS::StackName}-create-user-policy"
+      Users:
+        - !Ref CreateUser
+      PolicyDocument:
+        Statement:
+          - Effect: Allow
+            Action: "cloudformation:CreateStack"
+            Resource: !Sub "arn:aws:cloudformation:*:*:stack/*${ProjectName}*"
+
+  # API Gateway用のIAMロール
+  ApiGatewayRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-apigateway-role"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: "Allow"
+            Action: "sts:AssumeRole"
+            Principal:
+              Service:
+                - apigateway.amazonaws.com
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonAPIGatewayPushToCloudWatchLogs
+
+  # StateMachine用のIAMロール
+  StateMachineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-state-machine-role"
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: "Allow"
+            Action: "sts:AssumeRole"
+            Principal:
+              Service:
+                - events.amazonaws.com
+                - states.amazonaws.com
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaRole
+        - arn:aws:iam::aws:policy/CloudWatchLogsFullAccess
+
+  LambdaCommonRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${AWS::StackName}-LambdaCommon-role"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Effect: "Allow"
+            Action: "sts:AssumeRole"
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+      Policies:
+        - PolicyName: lambda-s3-policy
+          PolicyDocument:
+            Statement:
+            - Effect: Allow
+              Action: "s3:*"
+              Resource:
+              - !Sub "arn:aws:s3:::*${ProjectName}*"
+              - !Sub "arn:aws:s3:::*${ProjectName}*/*"
+            - Effect: Deny
+              Action: "s3:Delete*"
+              Resource: "*"
+
+
+Outputs:
+  OutputProjectGroup:
+    Description: "IAM Group"
+    Value: !GetAtt ProjectGroup.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-group"
+  OutputCreateUser:
+    Description: "IAM User for Create"
+    Value: !GetAtt CreateUser.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-create-user"
+  OutputDeployUser:
+    Description: "IAM User for Deploy"
+    Value: !GetAtt DeployUser.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-deploy-user"
+  OutputStateMachineRole:
+    Description: "IAM Role for StateMachine"
+    Value: !GetAtt StateMachineRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-statemachine-role"
+  OutputLambdaCommonRole:
+    Description: "IAM Role for LambdaCommon"
+    Value: !GetAtt LambdaCommonRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-LambdaCommon-role"
+  OutputApiGatewayRole:
+    Description: "IAM Role for StateMachine"
+    Value: !GetAtt ApiGatewayRole.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-apigateway-role"

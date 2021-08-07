@@ -1,0 +1,156 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+    SwaggerSample
+
+    Sample SAM Template for SwaggerSample
+
+    Created by soda-h
+
+Parameters:
+  ProjectName:
+    Description: プロジェクト名
+    Type: String
+    Default: 'sample-project-2021-06'
+  RefIamStackName:
+    Description: 参照するスタック名
+    Type: String
+    Default: 'sample-project-2021-06-stack-iam'
+  SwaggerLocation:
+    Description: Swaggerファイルの場所(ローカル指定だとパスが上手くいかない。。。)
+    Type: String
+    Default: 's3://sample-project-2021-06/swagger/swagger.yaml'
+
+Resources:
+  SampleApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: Prod
+      # DefinitionUri: swagger.yml
+      OpenApiVersion: 3.0.2
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: !Sub ${SwaggerLocation}
+      # TracingEnabled: true
+      Tags:
+        project: !Sub ${ProjectName}
+      Auth:
+        ApiKeyRequired: true
+      AccessLogSetting:
+        DestinationArn: !GetAtt ApiGatewayAccessLogGroup.Arn
+        # DestinationArn:
+        #   Fn::ImportValue: !Sub "${RefIamStackName}-apigateway-role"
+        # DestinationArn: !Ref ApiGatewayAccessLogGroup
+      MethodSettings:
+        - ResourcePath: '/*'
+          HttpMethod: '*'
+          DataTraceEnabled: true
+          LoggingLevel: 'INFO'
+          # MetricsEnabled: true
+      Cors:
+        AllowOrigin: "'*'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowMethods: "'GET'"
+        AllowCredentials: "'true'"
+
+  SampleApiKey:
+    Type: AWS::ApiGateway::ApiKey
+    DependsOn: SampleApi
+    Properties:
+      Name: !Sub "${AWS::StackName}-api-key"
+      Enabled: true
+      # StageKeys:
+      #   - RestApiId: !Ref SampleApi
+      #     StageName: Prod
+
+  SampleApiUsagePlan:
+    Type: AWS::ApiGateway::UsagePlan
+    DependsOn: SampleApi
+    Properties:
+      ApiStages:
+        - ApiId: !Ref SampleApi
+          Stage: !Ref SampleApiProdStage
+          # AWS::Serverless::Api のリソース名 + AWS::Serverless::Api の 'StageName' + Stage
+        # - ApiId: !Ref SampleApi
+        #   Stage: !Ref StageDev
+      Throttle:
+        BurstLimit: 200
+        RateLimit: 100
+      UsagePlanName: sample-api-usage-plan
+
+  SampleApiUsagePlanKey:
+    Type: AWS::ApiGateway::UsagePlanKey
+    DependsOn:
+      - SampleApiKey
+      - SampleApiUsagePlan
+    Properties :
+      KeyId: !Ref SampleApiKey
+      KeyType: API_KEY
+      UsagePlanId: !Ref SampleApiUsagePlan
+
+  ApiGatewayAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName : !Sub "/aws/${ProjectName}/api/access/${SampleApi}-Logs"
+      RetentionInDays: 7
+
+  LambdaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Role:
+        Fn::ImportValue: !Sub "${RefIamStackName}-LambdaCommon-role"
+      CodeUri: lambda_function/
+      Handler: app.lambda_handler
+      Runtime: python3.8
+      Timeout: 10
+      Tracing: Active
+      Environment:
+        Variables:
+          HOST: "webservices.amazon.co.jp"
+          REGION: "us-west-2"
+      Events:
+        Event_1:
+          Type: Api
+          Properties:
+            Path: /event_1
+            Method: get
+            RestApiId: !Ref SampleApi
+
+  # API GatewayへのLambda実行許可
+  LambdaFunctionPermission:
+    Type: 'AWS::Lambda::Permission'
+    Properties:
+      FunctionName: !GetAtt LambdaFunction.Arn
+      Action: 'lambda:invokeFunction'
+      Principal: apigateway.amazonaws.com
+      #SourceArn: !Sub
+      #  - >-
+      #    arn:aws:execute-api:${AWS::Region}:${AWS::AccountId}:${__ApiId__}/${__Stage__}/GET/{id}
+      #  - __Stage__: Prod
+      #    __ApiId__: !Ref SampleRestApi1
+
+Outputs:
+  SampleApiKeyID:
+    Description: "API Key ID"
+    Value: !GetAtt SampleApiKey.APIKeyId
+  SampleApiId:
+      Description: "API Gateway ID"
+      Value: !Ref SampleApi
+  SampleApiResourceId:
+      Description: "API Gateway Resource Id"
+      Value: !GetAtt SampleApi.RootResourceId
+  SampleApiUrl:
+      Description: "API Gateway endpoint URL"
+      Value: !Sub "https://${SampleApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/amazon_pa_api"
+  ApiGatewayAccessLogGroup:
+    Description: "API Gateway Log Group"
+    Value: !GetAtt ApiGatewayAccessLogGroup.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-ApiGatewayAccessLogGroup"
+  LambdaFunction:
+    Description: "Lambda Function"
+    Value: !GetAtt LambdaFunction.Arn
+    Export:
+      Name: !Sub "${AWS::StackName}-LambdaFunction"
