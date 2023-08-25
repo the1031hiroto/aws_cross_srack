@@ -1,0 +1,31 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: 'AWS::Serverless-2016-10-31'
+Description: govtech-file-upload-register function.
+
+Parameters:
+  Env:
+    Description: env
+    Type: String
+    Default: dev
+  RoleForLambda:
+    Description: Lambda用Role
+    Type: String
+    Default: arn:aws:iam::{ID}:role/service-role/{Role_name}
+
+Resources:
+  Hello:
+    Type: 'AWS::Serverless::Function'
+    Properties:
+      AutoPublishAlias: !Ref Env
+      CodeUri: .
+      Handler: lambda_function.lambda_handler
+      MemorySize: 1024
+      Role: !Ref RoleForLambda
+      Runtime: python3.9
+      Timeout: 900
+
+
+Outputs:
+  Arn:
+    Description: Hello Arn
+    Value: !GetAtt Hello.Arn
